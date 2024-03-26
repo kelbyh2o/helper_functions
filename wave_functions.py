@@ -15,7 +15,6 @@ import numpy as np
 def disp_iterative_c(T0,h_target):
     """
     Iteratively solve the dispersion relationship for wave speed, wave number, and wave length.
-
     KK MIT/WHOI 2024
 
     Arguments:
@@ -43,6 +42,7 @@ def disp_iterative_c(T0,h_target):
     k_new = k
     count = 0
     while np.any((abs(k_old - k_new) / k_new) > tol):
+    # while (abs(k_old - k_new) / k_new) > tol:
         k_old = k
         c = np.sqrt((g / k) * np.tanh(k * h_target))
         k = omega / c
@@ -58,7 +58,6 @@ def disp_iterative_c(T0,h_target):
 def get_n(L,h):
     """
     Takes the wave velocity and gets the group velocity coefficient.
-
     KK MIT/WHOI 2024
 
     Arguments:
@@ -82,7 +81,6 @@ def get_n(L,h):
 def get_Cg(c,L,h):
     """
     Calculates the group velocity of a wave.
-
     KK MIT/WHOI 2024
 
     Arguments:
@@ -107,7 +105,6 @@ def get_Cg(c,L,h):
 def get_Ks(Cg0,Cg):
     """
     Calculate the shoaling coefficient Ks.
-    
     KK MIT/WHOI 2024
 
     Arguments:
@@ -129,7 +126,6 @@ def get_Ks(Cg0,Cg):
 def get_Kr(c0,c,theta0):
     """
     Gets the refraction coefficient and wave angle.
-
     KK MIT/WHOI 2024
 
     Arguments:
@@ -156,7 +152,6 @@ def get_Kr(c0,c,theta0):
 def get_H_shoal(H0,L0,h0,c0,L,h,c,theta0):
     """
     Gets the shoaling wave height and wave angle.
-
     KK MIT/WHOI 2024
 
     Arguments:
@@ -195,7 +190,6 @@ def get_H_shoal(H0,L0,h0,c0,L,h,c,theta0):
 def get_break_h_and_H(Hs, hs, thetas, gamma):
     """
     Get the breaking wave height and depth.
-
     KK MIT/WHOI 2024
 
     Arguments:
@@ -253,7 +247,6 @@ def get_break_h_and_H(Hs, hs, thetas, gamma):
 def get_shoaling_with_breaking(Hs,hs,gamma,break_index):
     """
     Combine shoaling and breaking wave height.
-
     KK MIT/WHOI 2024
 
     Arguments:
@@ -293,7 +286,6 @@ def get_shoaling_with_breaking(Hs,hs,gamma,break_index):
 def get_E(H):
     """
     Calculate wave energy.
-
     KK MIT/WHOI 2024
 
     Arguments:
@@ -315,8 +307,7 @@ def get_E(H):
 def get_G(k,h):
     """
     Calculate the radiation stress coefficient G.
-    
-    KK MIT/WHOI 2024
+        KK MIT/WHOI 2024
 
     Arguments:
     ----------
@@ -337,7 +328,6 @@ def get_G(k,h):
 def get_Sxx_and_Sxy(H,k,h,theta):
     """
     Calculate the radiation stress components Sxx and Sxy.
-
     KK MIT/WHOI 2024
 
     Arguments:
@@ -363,3 +353,133 @@ def get_Sxx_and_Sxy(H,k,h,theta):
     Sxx = 1/2 * E * ((1+G)*np.cos(theta)**2 + G)
     Sxy = 1/2 * E * (1+G) * np.sin(theta) * np.cos(theta)
     return Sxx, Sxy
+
+def deep_water_period(water_depth):
+    """
+    Determine what wave period is the maximum for the buoy to be considered in deep water.
+    KK MIT/WHOI 2024
+
+    Arguments:
+    ----------
+    water_depth : float
+        Water depth [m].
+
+    Returns:
+    -----------
+    deep_water_period : float
+        Wave period [s].
+    """
+    deep_water_period = 2*water_depth
+    return deep_water_period
+
+def get_theta_relative_to_shore(shore_normal_heading,Dp):
+    """
+    Get the wave angle relative to the shore.
+    KK MIT/WHOI 2024
+
+    Arguments:
+    ----------
+    shore_normal_heading : float
+        Shore normal heading [degrees].
+    Dp : np.array
+        Wave direction [degrees].
+
+    Returns:
+    -----------
+    theta0 : np.array
+        Wave angle relative to the shore [degrees].
+    """
+    theta0 = Dp - shore_normal_heading
+    # Replace with nan if the magnitude of theta0 is greater than 90 degrees
+    theta0 = np.where(np.abs(theta0) > 90, np.nan, theta0)
+    return theta0
+
+def create_depth_array(buoy_depth, h_final, dh):
+    """
+    Create an array of depths to calcualte wave parameters
+    KK MIT/WHOI 2024
+
+    Arguments:
+    ----------
+    buoy_depth : float
+        Buoy depth [m].
+    h_final : float
+        Final depth [m].
+    dh : float
+        Depth increment [m].
+    
+    Returns:
+    -----------
+    hs : np.array
+        Depth array [m].
+    """
+    hs = np.arange(buoy_depth,h_final,-dh)
+    return hs
+
+def get_ws(S,d,Cd):
+    """
+    Get fall velocity of sand particles.
+    KK MIT/WHOI 2024
+
+    Arguments:
+    ----------
+    S : float
+        Specific gravity of sand.
+    d : float
+        Diameter of sand particle [m].
+    Cd : float
+        Drag coefficient.
+
+    Returns:
+    -----------
+    ws : float
+        Fall velocity of sand particles [m/s].
+    """
+    g = 9.81
+    ws = np.sqrt((4*g*d*(S-1))/(3*Cd)) # Coastal Dynamics 6.4
+    return ws
+
+def get_ws_stokes(S,d,nu=1e-6):
+    """
+    Get the fall velocity of san particles in the stokes range
+    KK MIT/WHOI 2024
+
+    Arguments:
+    ----------
+    S : float
+        Specific gravity of sand.
+    d : float
+        Diameter of sand particle [m].
+    nu : float
+        Kinematic viscosity of water [m^2/s].
+
+    Returns:
+    -----------
+    ws : float
+        Fall velocity of sand particles [m/s].
+    """
+    g = 9.81
+    ws = ((S-1)*g*(d**2))/(18*nu) # Coastal Dynamics 6.7
+    return ws
+
+def get_DFV_Omega(Hb,T,ws):
+    """
+    Get the dimensionless fall velocity.
+    KK MIT/WHOI 2024
+
+    Arguments:
+    ----------
+    Hbs : float
+        Breaking wave height [m].
+    T0s : float
+        Wave period [s].
+    ws : float
+        Fall velocity of sand particles [m/s].
+
+    Returns:
+    -----------
+    Omega : float
+        Dimensionless fall velocity.
+    """
+    Omega = Hb/(ws*T)
+    return Omega

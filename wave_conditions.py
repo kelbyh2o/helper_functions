@@ -26,7 +26,7 @@ from itertools import groupby
 def find_nearest(array,value):
     """
     Find the nearest value in a numpy array to a given value.
-    CDIP 2024
+    Adapted from CDIP 2024
 
     Arguments:
     ----------
@@ -47,7 +47,7 @@ def find_nearest(array,value):
 def getUnixTimestamp(humanTime,dateFormat):
     """
     Convert a human readable timestamp to a unix timestamp.
-    CDIP 2024
+    Adapted from CDIP 2024
 
     Arguments:
     ----------
@@ -67,7 +67,7 @@ def getUnixTimestamp(humanTime,dateFormat):
 def getHumanTimestamp(unixTimestamp, dateFormat):
     """
     Convert a unix timestamp to a human readable timestamp.
-    CDIP 2024
+    Adapted from CDIP 2024
 
     Arguments:
     ----------
@@ -91,7 +91,7 @@ def getHumanTimestamp(unixTimestamp, dateFormat):
 def wave_history_plt(ncTime, timeall, Hs,Tp, Dp, stn, startdate, enddate):
     """
     Creates a plot of wave conditions over a specified time period.
-    KK MIT/WHOI 2024
+    Adapted from CDIP 2024 - KK MIT/WHOI 2024
 
     Arguments:
     ----------
@@ -170,83 +170,76 @@ def wave_history_plt(ncTime, timeall, Hs,Tp, Dp, stn, startdate, enddate):
 
     return plt 
 
-def WIS_wave_history(nc, stn, startdate, enddate):
+def clip_data(ncTime, time_format, startdate, enddate, data):
     """
-    Creates a plot of wave conditions over a specified time period.
-    CDIP 2024 - KK Adapted for WIS data 2024
+    Take a dataset and clip it to a specified time period.
+    KK MIT/WHOI 2024
 
     Arguments:
     ----------
-    nc : netCDF4 Dataset
-        CDIP netCDF file.
-    stn : string
-        CDIP station name.
+    ncTime : numpy array
+        Time variable from netCDF file.
+    timeall : numpy array
+        Time variable converted to datetime stamps.
+    time_format : string
+        Time format of the time variable.
     startdate : string
-        Start date of the time period to plot.
+        Start date of the time period to clip.
     enddate : string
-        End date of the time period to plot.
-
-    Returns:
-    -----------
-    plt : matplotlib.pyplot
-        Plot of wave conditions over the specified time period.
+        End date of the time period to clip.
+    data : numpy array
+        Data variable to clip.
     """
 
-    # Read in variables
-    ncTime = nc.variables['time'][:]
-    timeall = [datetime.datetime.fromtimestamp(t) for t in ncTime] # Convert ncTime variable to datetime stamps
-    Hs = nc.variables['waveHs'][:]
-    Tp = nc.variables['waveTpPeak'][:]
-    Dp = nc.variables['waveMeanDirection'][:]
-
-    # Create a variable of the Buoy Name and Month Name, to use in plot title
-    buoytitle = "Buoy " + stn
-
     # Find the nearest unix timestamp to the start and end dates
-    unixstart = getUnixTimestamp(startdate,"%Y-%m-%d") 
+    unixstart = getUnixTimestamp(startdate,time_format) 
     neareststart = find_nearest(ncTime, unixstart)  # Find the closest unix timestamp
     nearIndex = np.where(ncTime==neareststart)[0][0]  # Grab the index number of found date
 
-    unixend = getUnixTimestamp(enddate,"%Y-%m-%d")
+    unixend = getUnixTimestamp(enddate, time_format)
     future = find_nearest(ncTime, unixend)  # Find the closest unix timestamp
     futureIndex = np.where(ncTime==future)[0][0]  # Grab the index number of found date
 
-    # Crete figure and specify subplot orientation (3 rows, 1 column), shared x-axis, and figure size
-    fig, (pHs, pTp, pDp) = plt.subplots(3, 1, sharex=True, figsize=(12, 12))
+    # Clip the data to the specified time period
+    clipped_data = data[nearIndex:futureIndex]
 
+    return clipped_data
 
-    # Create 3 stacked subplots for three PARAMETERS (Hs, Tp, Dp)
-    pHs.plot(timeall[nearIndex:futureIndex],Hs[nearIndex:futureIndex],'b')
-    pTp.plot(timeall[nearIndex:futureIndex],Tp[nearIndex:futureIndex],'b')
-    pDp.scatter(timeall[nearIndex:futureIndex],Dp[nearIndex:futureIndex],color='blue',s=5) # Plot Dp variable as a scatterplot, rather than line
+def get_range_around_DOI(DOI,time_format,before,after):
+    """
+    Get a range of dates around a specified date of interest.
+    KK MIT/WHOI 2024
 
-    # Set Titles
-    plt.suptitle(buoytitle, fontsize=28)
-    pHs.set_title('Significant Wave Height (Hs)', fontsize=20)
-    pTp.set_title('Peak Wave Period (Tp)', fontsize=20)
-    pDp.set_title('Peak Wave Direction (Dp)', fontsize=20)
+    Arguments:
+    ----------
+    DOI : string
+        Date of interest.
+    time_format : string
+        Time format of the date of interest.
+    before : int
+        Number of days before the date of interest.
+    after : int
+        Number of days after the date of interest.
 
-    # Label x-axis
-    plt.xlabel('Date', fontsize=18)
+    Returns:
+    -----------
+    startdate : string
+        Start date of the range.
+    enddate : string
+        End date of the range.
+    """
+    # Convert the date of interest to a unix timestamp
+    unixDOI = getUnixTimestamp(DOI,time_format)
 
-    # Make a second y-axis for the Hs plot, to show values in both meters and feet
-    pHs2 = pHs.twinx()
+    # Get the unix timestamps of the start and end dates of the range
+    unixstart = unixDOI - (before * 86400)
+    unixend = unixDOI + (after * 86400)
 
-    # Set y-axis limits for each plot
-    pHs.set_ylim(0,8)
-    pHs2.set_ylim(0,25)
-    pTp.set_ylim(0,28)
-    pDp.set_ylim(0,360)
+    # Convert the unix timestamps to human readable timestamps
+    startdate = getHumanTimestamp(unixstart,time_format)
+    enddate = getHumanTimestamp(unixend,time_format)
 
-    # Label each y-axis
-    pHs.set_ylabel('Hs, m', fontsize=18)
-    pHs2.set_ylabel('Hs, ft', fontsize=18)
-    pTp.set_ylabel('Tp, s', fontsize=18)
-    pDp.set_ylabel('Dp, deg', fontsize=18)
+    # convert the unixDOI to a datetime object
+    DOI = datetime.datetime.strptime(DOI, time_format)
 
-    # Plot dashed gridlines
-    pHs.grid(which='major', color='b', linestyle='--')
-    pTp.grid(which='major', color='b', linestyle='--')
-    pDp.grid(which='major', color='b', linestyle='--')
-
-    return plt 
+    return startdate, enddate, DOI
